@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- General interest categories and neutral search examples replace niche suggestions. No interests are preselected.
+- Setup starts with a blank location field, without preset city suggestions, and requires a resolved place before opening the workspace. Users choose their own radius and interests.
+
 ## 0.4.0
 
 - Public Windows x64 installer and portable release: MIT license, setup/privacy documentation, dependency notices, checksums, and Windows CI.
