@@ -1,0 +1,15 @@
+import { createServer } from 'vite';
+import { spawn } from 'node:child_process';
+import electron from 'electron';
+await import('./build.mjs');
+const server = await createServer({ server: { host: '127.0.0.1', port: 5173, strictPort: true } });
+await server.listen();
+const env = { ...process.env, WHATSUP_DEV_URL: 'http://127.0.0.1:5173' };
+delete env.ELECTRON_RUN_AS_NODE;
+const desktop = spawn(electron, ['.'], { stdio: 'inherit', env, windowsHide: true });
+const finish = async code => { await server.close(); process.exit(code ?? 0); };
+desktop.on('exit', finish);
+desktop.on('error', async error => { console.error(error); await finish(1); });
+process.on('SIGINT', () => desktop.kill());
+process.on('SIGTERM', () => desktop.kill());
+console.log("What's Up desktop is running. React changes refresh automatically.");

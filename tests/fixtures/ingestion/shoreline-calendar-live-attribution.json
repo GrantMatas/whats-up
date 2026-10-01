@@ -1,0 +1,29 @@
+{
+  "capturedAt": "2026-09-30T12:17:20.072Z",
+  "publisherUrl": "https://www.shoreline.edu/calendars/mobile-devices.aspx",
+  "discovery": [
+    {
+      "url": "https://www.trumba.com/calendars/sccevents.ics",
+      "parserType": "ical",
+      "name": "Published calendar/feed subscription"
+    },
+    {
+      "url": "https://www.trumba.com/calendars/sccevents.json",
+      "parserType": "json",
+      "name": "Published calendar: Trumba public JSON feed"
+    }
+  ],
+  "ics": {
+    "url": "https://www.trumba.com/calendars/sccevents.ics",
+    "status": 200,
+    "records": 39,
+    "title": "Fall 2026 Welcome Week"
+  },
+  "json": {
+    "url": "https://www.trumba.com/calendars/sccevents.json",
+    "status": 200,
+    "records": 67
+  },
+  "robotsPolicy": "PublicHttp.request default robots checks on every origin/path",
+  "fixtureSanitization": "Personal contact name and phone removed from the ICS description before repository publication; event dates and location are unchanged."
+}
