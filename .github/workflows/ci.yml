@@ -30,3 +30,55 @@ jobs:
             release/SHA256SUMS.txt
             release/PRIVACY-AUDIT.json
           if-no-files-found: error
+  publish:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Publish verified Windows distribution
+        shell: pwsh
+        env:
+          RELEASE_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $headers=@{Authorization="Bearer $env:RELEASE_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28'}
+          $base="https://api.github.com/repos/$env:GITHUB_REPOSITORY"
+          $artifacts=Invoke-RestMethod -Uri "$base/actions/runs/$env:GITHUB_RUN_ID/artifacts" -Headers $headers
+          $artifact=$artifacts.artifacts | Where-Object {$_.name -eq 'windows-distribution' -and !$_.expired}
+          if(@($artifact).Count -ne 1){throw 'Expected one validated distribution'}
+          Invoke-WebRequest -Uri $artifact.archive_download_url -Headers $headers -OutFile distribution.zip
+          Expand-Archive -LiteralPath distribution.zip -DestinationPath distribution
+          $manifest=Get-Content distribution/PRIVACY-AUDIT.json -Raw | ConvertFrom-Json
+          if(!$manifest.passed -or $manifest.version -notmatch '^\d+\.\d+\.\d+$'){throw 'Validated release manifest required'}
+          $version=$manifest.version
+          $expected=@("Whats-Up-Setup-$version.exe","Whats-Up-$version.exe",'SHA256SUMS.txt','PRIVACY-AUDIT.json')
+          $files=@(Get-ChildItem distribution -File -Recurse)
+          if($files.Count -ne 4 -or @($files | Where-Object {$expected -notcontains $_.Name}).Count){throw 'Unexpected distribution contents'}
+          foreach($asset in $manifest.assets){
+            $file=$files | Where-Object Name -eq $asset.name
+            if(!$file -or $file.Length -ne $asset.bytes -or (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne $asset.sha256){throw 'Distribution integrity check failed'}
+          }
+          $release=$null
+          try{$release=Invoke-RestMethod -Uri "$base/releases/tags/v$version" -Headers $headers}catch{if([int]$_.Exception.Response.StatusCode -ne 404){throw}}
+          if($release -and !$release.draft){Write-Output "Version $version is already published";exit 0}
+          $notes="Windows x64 installer and portable app. Full Refresh is the recommended default manual scan. Address and venue areas use the surrounding city for discovery while preserving coordinates and saved data. Empty workspaces retry discovery, provider outages stop repeated queries, and Full Refresh retries failed search requests. Clear filters shows all collected records. City time zones are resolved when available.`n`nWindows validation, automated tests, packaged startup, and the privacy audit passed for this commit. Downloads contain no demo data, developer profiles, databases, or logs. Checksums and the package audit are attached. No Node.js, account, or API key is required. The installer includes an uninstaller. See README for setup and privacy details.`n`nBuilds remain unsigned. Public source coverage varies, and scheduled scans require the app to remain open."
+          if(!$release){
+            $body=@{tag_name="v$version";target_commitish=$env:GITHUB_SHA;name="What's Up $version";draft=$true;prerelease=$false;body=$notes} | ConvertTo-Json
+            $release=Invoke-RestMethod -Method Post -Uri "$base/releases" -Headers $headers -ContentType 'application/json' -Body $body
+          }
+          foreach($file in $files){
+            $existing=$release.assets | Where-Object name -eq $file.Name
+            $digest='sha256:'+(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if($existing){if($existing.digest -ne $digest){throw 'Existing draft asset differs from validated artifact'};continue}
+            $url=$release.upload_url.Split('{')[0]+'?name='+[uri]::EscapeDataString($file.Name)
+            $uploaded=Invoke-RestMethod -Method Post -Uri $url -Headers $headers -ContentType 'application/octet-stream' -InFile $file.FullName -TimeoutSec 300
+            if($uploaded.size -ne $file.Length -or $uploaded.digest -ne $digest){throw 'Release upload integrity check failed'}
+          }
+          $release=Invoke-RestMethod -Uri "$base/releases/$($release.id)" -Headers $headers
+          if($release.assets.Count -ne 4){throw 'Release assets incomplete'}
+          $body=@{draft=$false;body=$notes} | ConvertTo-Json
+          $published=Invoke-RestMethod -Method Patch -Uri "$base/releases/$($release.id)" -Headers $headers -ContentType 'application/json' -Body $body
+          Write-Output "Published $($published.html_url)"

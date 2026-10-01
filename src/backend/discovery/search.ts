@@ -43,19 +43,23 @@ export class SearxngSearchProvider implements SearchDiscoveryProvider {
 export interface SearchCacheStore { getSearch(key:string,now?:number):SearchCache|null;cacheSearch(value:SearchCache):void }
 export class SearchDiscoveryEngine {
   private cooldown=new Map<string,number>();private pending=new Map<string,Promise<SearchResult[]>>();
+  private retryFailures=false;
   constructor(private providers:SearchDiscoveryProvider[],private cache:SearchCacheStore){}
+  available(){return this.providers.some(provider=>(this.cooldown.get(provider.name)||0)<=Date.now());}
+  refresh(){this.cooldown.clear();this.retryFailures=true;}
   async search(query:DiscoveryQuery,key:string,onProvider?:(name:string,status:string)=>void,signal?:AbortSignal):Promise<SearchResult[]> {
     const output:SearchResult[]=[];
     for(const provider of this.providers){
       signal?.throwIfAborted();const cacheKey=createHash('sha256').update(`${provider.name}|${key}|${query.radiusMiles}|${query.query.trim().toLowerCase()}`).digest('hex');
       const cached=this.cache.getSearch(cacheKey);
-      if(cached){onProvider?.(provider.name,cached.error?`Cached failure: ${cached.error}`:`${cached.results.length} cached results`);output.push(...cached.results);continue;}
-      if((this.cooldown.get(provider.name)||0)>Date.now()){onProvider?.(provider.name,'Cooling down after an access/network failure');continue;}
+      if(cached&&!cached.error){onProvider?.(provider.name,`${cached.results.length} cached results`);output.push(...cached.results);continue;}
+      if((this.cooldown.get(provider.name)||0)>Date.now()){onProvider?.(provider.name,'Skipped while provider recovers; local publisher collection continues');continue;}
+      if(cached?.error&&!this.retryFailures){this.cooldown.set(provider.name,Date.parse(cached.expiresAt));onProvider?.(provider.name,`Skipped previous unavailable request: ${cached.error}. Use Full Refresh to retry.`);continue;}
       let work=this.pending.get(cacheKey);
       if(!work){work=(async()=>{try{
         onProvider?.(provider.name,'Searching');const now=new Date().toISOString();const results=(await Promise.resolve().then(()=>provider.search(query,signal))).map(row=>({...row,url:canonicalUrl(row.url),provider:provider.name,query:query.query,foundAt:now}));
         this.cache.cacheSearch({key:cacheKey,query:query.query,provider:provider.name,locationKey:key,results,expiresAt:new Date(Date.now()+6*3600000).toISOString()});onProvider?.(provider.name,`${results.length} results`);return results;
-      }catch(error){signal?.throwIfAborted();const message=String(error).slice(0,500);this.cooldown.set(provider.name,Date.now()+15*60000);this.cache.cacheSearch({key:cacheKey,query:query.query,provider:provider.name,locationKey:key,results:[],error:message,expiresAt:new Date(Date.now()+15*60000).toISOString()});onProvider?.(provider.name,message);return [];}finally{this.pending.delete(cacheKey);}})();this.pending.set(cacheKey,work);}
+      }catch(error){signal?.throwIfAborted();const message=String(error).slice(0,500);this.cooldown.set(provider.name,Date.now()+15*60000);this.cache.cacheSearch({key:cacheKey,query:query.query,provider:provider.name,locationKey:key,results:[],error:message,expiresAt:new Date(Date.now()+15*60000).toISOString()});onProvider?.(provider.name,`Failed: ${message}`);return [];}finally{this.pending.delete(cacheKey);}})();this.pending.set(cacheKey,work);}
       output.push(...await work);
     }
     return output.filter((item,index,array)=>array.findIndex(other=>other.url===item.url)===index).slice(0,30);
@@ -63,8 +67,8 @@ export class SearchDiscoveryEngine {
 }
 const facets=['events today','events this weekend','community events','concert','festival','road closure','construction','police news','fire department','public notices','city council','traffic','meetup','things happening','breaking news','local events','new business','market','convention','live music'];
 export function webDiscoveryQueries(location:Location,radars:Radar[],interests:string[],nearby:Location[]=[],query?:string,category?:string):string[] {
-  const area=location.name.split(',').slice(0,2).join(', ');const queries:string[]=[];
-  if(query?.trim())queries.push(`${area} ${query.trim()}`,`"${location.name.split(',')[0]}" ${query.trim()} organizer`,`${area} ${query.trim()} event calendar`);
+  const name=location.discoveryName||location.name;const area=name.split(',').slice(0,2).join(', ');const queries:string[]=[];
+  if(query?.trim())queries.push(`${area} ${query.trim()}`,`"${name.split(',')[0]}" ${query.trim()} organizer`,`${area} ${query.trim()} event calendar`);
   for(const radar of radars.filter(r=>r.enabled).sort((a,b)=>({high:2,normal:1,low:0}[b.priority||"normal"])-({high:2,normal:1,low:0}[a.priority||"normal"])).slice(0,8))queries.push(`${area} ${radar.query}`);
   for(const interest of interests.slice(0,6))queries.push(`${area} ${interest}`);
   for(const facet of category?[`${category} announcements`,`${category} events`,`${category} public posts`,...facets]:facets)queries.push(`${area} ${facet}`);

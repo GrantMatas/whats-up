@@ -1,7 +1,8 @@
 import type { AppSettings } from '../../shared/models';
 import type { ScanMode, ScanRun } from '../../shared/intelligence';
-export function chooseScanMode(requested:ScanMode,settings:AppSettings,runs:ScanRun[],now=Date.now()):ScanMode {
+export function chooseScanMode(requested:ScanMode,settings:AppSettings,runs:ScanRun[],now=Date.now(),hasRecords=true):ScanMode {
   if(requested!=='smart')return requested;
+  if(!hasRecords)return 'refresh';
   const complete=runs.filter(run=>run.status==='complete');
   const last=(modes:ScanMode[])=>Math.max(0,...complete.filter(run=>modes.includes(run.mode)).map(run=>Date.parse(run.completedAt!)));
   if(now-last(['refresh'])>=settings.scanning.rediscoveryHours*3600000)return 'refresh';

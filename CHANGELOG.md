@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2
+
+- Full Refresh is the default manual scan; empty workspaces retry discovery with Smart Scan.
+- Address and venue selections use their surrounding city for discovery without changing map coordinates or saved workspace keys. City time zones are resolved when available.
+- Provider outages stop repeated queries; Full Refresh retries cached failures while publisher collection continues.
+- Empty Quick Scan reports no source checks were due; Clear filters includes all collected records.
+
 ## 0.4.1
 
 - General interest categories and neutral search examples replace niche suggestions. No interests are preselected.

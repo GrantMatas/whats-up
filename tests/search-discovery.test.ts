@@ -6,6 +6,19 @@ import { WorkQueue } from '../src/backend/scheduler/queue';
 import { sourceFromResult } from '../src/backend/discovery/directory';
 
 describe('independent public search providers',()=>{
+  it('stops repeated outage attempts and retries a cached failure on Full Refresh',async()=>{
+    const db=new LocalDatabase(':memory:');let calls=0;let fails=true;const statuses:string[]=[];
+    const engine=new SearchDiscoveryEngine([{name:'Public index',async search(){calls++;if(fails)throw Error('HTTP 503');return [{title:'Public calendar',url:'https://calendar.example/events',snippet:'Calendar'}];}}],db.intelligence);
+    const query={query:'City events',locationName:'City',radiusMiles:25};
+    expect(await engine.search(query,'city',(_,status)=>statuses.push(status))).toEqual([]);expect(engine.available()).toBe(false);
+    await engine.search({...query,query:'City music'},'city',(_,status)=>statuses.push(status));expect(calls).toBe(1);
+    expect(statuses.filter(status=>status.startsWith('Failed:'))).toHaveLength(1);expect(statuses.at(-1)).toMatch(/^Skipped/);
+    fails=false;engine.refresh();expect(engine.available()).toBe(true);expect(await engine.search(query,'city')).toHaveLength(1);expect(calls).toBe(2);db.close();
+  });
+  it('uses the city for an address-centered directory and web search',()=>{
+    const location={...defaultSettings.location,name:'Sample intersection, Example Street',discoveryName:'Sampleton, Indiana, US'};
+    expect(webDiscoveryQueries(location,[],[]).every(query=>query.startsWith('Sampleton, Indiana'))).toBe(true);
+  });
   it('survives provider failures, caches queries, and keeps URLs unique',async()=>{
     const db=new LocalDatabase(':memory:');let calls=0;
     const engine=new SearchDiscoveryEngine([{name:'Unavailable',async search(){throw Error('HTTP 403');}},{name:'Accessible',async search(){calls++;return [{title:'City calendar',url:'https://city.example/events?utm_source=search',snippet:'Published calendar'}];}}],db.intelligence);

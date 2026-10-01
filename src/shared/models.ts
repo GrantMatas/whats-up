@@ -29,7 +29,7 @@ export const happeningSchema = z.object({
   publishedAt: iso.nullable().optional(), sourceId: text.optional(), originalUrl: httpsUrlSchema.optional(), locationAccuracy: z.enum(['exact', 'approximate', 'region', 'unknown']).optional(), allDay: z.boolean().optional(), rawMetadata: z.record(z.string(), z.unknown()).optional(), timezone: text.optional(), locationKey: text.optional(),
 }).strict().refine(h => !h.endTime || !h.startTime || Date.parse(h.endTime) >= Date.parse(h.startTime), 'End must follow start').refine(h => h.geometry ? ({ Point: 'POINT', LineString: 'LINESTRING', Polygon: 'POLYGON' })[h.geometry.type] === h.geometryType : h.geometryType === null, 'Geometry type must agree');
 export type Happening = z.infer<typeof happeningSchema>;
-export const locationSchema = z.object({ name: text, latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180), timezone: text.optional(), countryCode: text.optional(), region: text.optional(), key: text.optional() }).strict();
+export const locationSchema = z.object({ name: text, latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180), timezone: text.optional(), countryCode: text.optional(), region: text.optional(), key: text.optional(), discoveryName: text.optional() }).strict();
 export type Location = z.infer<typeof locationSchema>;
 export const settingsSchema = z.object({
   onboarded: z.boolean(), location: locationSchema,

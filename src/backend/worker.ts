@@ -47,13 +47,13 @@ function log(value: Record<string,unknown>) {
 }
 async function scan(options: ScanRequest = {}) {
   if (scanning) { pendingScan = options; return; }
-  const settings = database.getSettings();
+  let settings = database.getSettings();
   if (!settings.onboarded || settings.demoMode) return;
   scanning = true;
-  const location = settings.location;
+  let location = settings.location;
   const locationKey = location.key || location.name;
   activeScope=locationKey;
-  const mode=chooseScanMode(options.mode||(options.force?'refresh':options.query?'deep':'smart'),settings,database.intelligence.runs(locationKey));
+  const mode=chooseScanMode(options.mode||(options.force?'refresh':options.query?'deep':options.origin==='scheduled'||options.origin==='startup'?'smart':'refresh'),settings,database.intelligence.runs(locationKey),Date.now(),database.getState().happenings.length>0);
   const run=database.intelligence.beginRun(locationKey,mode,options.origin||'manual');
   const task=(kind:ScanTask['kind'],label:string,url?:string)=>{const value=database.intelligence.startTask(run.id,kind,label,url);emit();return value.id;};
   const done=(id:string,result:string,failed=false)=>{database.intelligence.finishTask(id,result,failed);emit();};
@@ -63,14 +63,15 @@ async function scan(options: ScanRequest = {}) {
   const attemptedAddresses=new Set<string>();
   const started = Date.now();
   try {
-    if(mode==='refresh')directory.clearCache();
+    try{const resolved=await geocoder.discoveryArea(location);const current=database.getSettings();if((current.location.key||current.location.name)!==locationKey||!current.onboarded)return;if(resolved.discoveryName&&resolved.discoveryName!==location.discoveryName){location=resolved;settings={...current,location};database.saveSettings(settings);emit();}}catch(error){log({stage:'area-resolution',error:String(error)});}
+    if(mode==='refresh'){directory.clearCache();searchEngine(settings.scanning.searchEndpoint).refresh();posts.refresh();}
     let sources = database.getState().sources;
     // Catalogs are reused. Discovery is refreshed at most daily, or explicitly for deeper search.
     if (!sources.length || options.query || mode==='refresh') {
       const found: Source[] = [];
       for (const query of discoveryQueries(location,options.query)) {
         const id=task('discovery',`Finding local organizations · ${query}`);
-        try { const results = await directory.discover({query,locationName:location.name,radiusMiles:settings.radiusMiles}); found.push(...results.map(r=>sourceFromResult(r,location)));done(id,`${results.length} source candidates`); }
+        try { const results = await directory.discover({query,locationName:location.discoveryName||location.name,radiusMiles:settings.radiusMiles}); found.push(...results.map(r=>sourceFromResult(r,location)));done(id,`${results.length} source candidates`); }
         catch (error) { done(id,String(error),true);log({stage:'discovery',provider:directory.name,query,error:String(error)}); }
       }
       if (location.countryCode === 'US' || !location.countryCode && location.longitude < -50) {
@@ -87,11 +88,12 @@ async function scan(options: ScanRequest = {}) {
       const queries=webDiscoveryQueries(location,state.radars,settings.interests,nearby,options.query,options.category).slice(0,onBattery?4:options.query?12:24);
       const engine=searchEngine(settings.scanning.searchEndpoint);const discovered=new Map<string,Source>();
       for(const query of queries){
+        if(!engine.available())break;
         const current=database.getSettings();if(!current.onboarded||current.demoMode||(current.location.key||current.location.name)!==locationKey)return;
         const id=task('search',query);const providerStates:string[]=[];
         try{const results=await searchQueue.run(()=>engine.search({query,locationName:location.name,radiusMiles:settings.radiusMiles},locationKey,(provider,state)=>providerStates.push(`${provider}: ${state}`)));
           for(const result of results){if(/(^|\.)(wikipedia\.org|wikimedia\.org|google\.com|bing\.com)$/.test(new URL(result.url).hostname))continue;const source=sourceFromResult({...result,snippet:`Found through ${result.provider}. Query: ${query}. Region and facts must be checked on the original page.`},location);if(/(^|\.)(bsky\.app|reddit\.com|mastodon\.[\w.]+|meetup\.com|facebook\.com|instagram\.com|x\.com|twitter\.com)$/.test(source.domain)){source.type='COMMUNITY';source.reliability=35;}discovered.set(source.url,source);if(discovered.size>=60)break;}
-          done(id,`${results.length} results. ${providerStates.join(' · ')}`,!results.length&&providerStates.some(state=>/error|unavailable|failed|cooling|timeout/i.test(state)));
+          done(id,`${results.length} results. ${providerStates.join(' · ')}`,!results.length&&providerStates.some(state=>state.includes('Failed:')));
         }catch(error){done(id,String(error),true);}
         if(discovered.size>=60)break;
       }

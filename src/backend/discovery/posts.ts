@@ -6,6 +6,8 @@ import type { IntelligenceStore } from '../database/intelligence';
 export class PublicPostProvider {
   readonly name='Bluesky public posts';private nextAttempt=0;
   constructor(private http:PublicHttp,private cache?:IntelligenceStore){}
+  available(){return this.nextAttempt<=Date.now()&&!this.cache?.postQuery('provider-failure')?.error;}
+  refresh(){this.nextAttempt=0;this.cache?.cachePosts('provider-failure',{records:[],expiresAt:0});}
   async search(query:string):Promise<ExtractedRecord[]> {
     const cached=this.cache?.postQuery(query);if(cached){if(cached.error)throw Error(cached.error);return cached.records;}
     const failure=this.cache?.postQuery('provider-failure');if(failure?.error)throw Error(failure.error);

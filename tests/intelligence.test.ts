@@ -51,4 +51,8 @@ describe('research cadence',()=>{
     expect(automaticScanDue({...settings,scanning:{...settings.scanning,enabled:false}},[],now)).toBe(false);
     expect(chooseScanMode('quick',settings,[],now)).toBe('quick');expect(chooseScanMode('smart',settings,[],now)).toBe('refresh');
   });
+  it('retries discovery for an empty workspace after a completed empty scan',()=>{
+    expect(chooseScanMode('smart',settings,[run('refresh',0.1)],now,false)).toBe('refresh');
+    expect(chooseScanMode('smart',settings,[run('refresh',0.1)],now,true)).toBe('quick');
+  });
 });

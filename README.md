@@ -6,17 +6,25 @@ A local-first Windows app for discovering public events, news, alerts, and commu
 
 Download the Windows x64 build from [GitHub Releases](https://github.com/GrantMatas/whats-up/releases/latest):
 
-- **Whats-Up-Setup-0.4.1.exe** installs the app and creates shortcuts.
-- **Whats-Up-0.4.1.exe** runs without installation. Settings and collected information still live in your Windows user profile.
+- **Whats-Up-Setup-0.4.2.exe** installs the app and creates shortcuts.
+- **Whats-Up-0.4.2.exe** runs without installation. Settings and collected information still live in your Windows user profile.
 - **SHA256SUMS.txt** contains checksums for both downloads.
 
 Use Windows 11 x64. No Node.js installation, account, database server, or API key is required. These builds are unsigned; Windows may show an unknown-publisher warning. Verify the release origin and checksum before deciding whether to run it. Code signing remains outstanding.
 
 ```powershell
-Get-FileHash -Algorithm SHA256 -LiteralPath ".\Whats-Up-Setup-0.4.1.exe"
+Get-FileHash -Algorithm SHA256 -LiteralPath ".\Whats-Up-Setup-0.4.2.exe"
 ```
 
 On first launch, the place field is blank. Enter and resolve your own city with its state or country, choose a radius and interests, and open your brief. Interest categories are general, with nothing preselected; you can add your own topics. New installations contain **no events, sources, saved searches, or demo data**. Public discovery fills the workspace; Sources shows progress and failures. Internet access is needed for discovery, updates, geocoding, maps, and images. Previously collected text remains available locally.
+
+## Scanning and empty results
+
+**Full Refresh (recommended)** is the default manual scan. It discovers local publishers, rechecks existing sources, and retries unavailable search providers. Smart Scan remains available for lighter scheduled checks; an empty workspace triggers discovery again.
+
+Street and venue locations keep their selected coordinates while searches use the surrounding city. Publisher feeds and calendars continue collecting when optional public search or social APIs are unavailable. One provider outage stops its remaining queries rather than reporting each skipped query as another failure. Real publisher failures remain visible in the work log.
+
+If a time filter hides collected records, choose **All collected** or **Clear filters**. An empty weather response means there are no active alerts; it does not provide an event catalog. Source coverage varies by area.
 
 ## Uninstall
 
@@ -62,7 +70,7 @@ npm test
 npm audit --omit=dev
 npm run package
 npm run audit:release
-node scripts/smoke.mjs "release/What's Up 0.4.1.exe"
+node scripts/smoke.mjs "release/What's Up 0.4.2.exe"
 ```
 
 `npm run build` creates the production app; `npm start` launches it. Packaging creates installer and portable executables in `release/`. Production uses the local `whatsup://app/` origin and a sandboxed renderer. The Vite browser preview starts empty and cannot run desktop ingestion.

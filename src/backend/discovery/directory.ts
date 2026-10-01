@@ -136,7 +136,7 @@ export function sourceFromResult(result:DiscoveryResult, location:Location):Sour
   return {sourceId:createHash('sha256').update(url.href).digest('hex').slice(0,24),name:result.title.slice(0,200),url:url.href,domain:url.hostname,type:official ? 'OFFICIAL' : localNews.test(url.hostname) ? 'NEWS' : 'UNVERIFIED',region:location.name,lastChecked:null,lastSuccessful:null,checkFrequency:official ? 43200 : 21600,parserType:/\.ics|ical/i.test(url.href) ? 'ical' : /rss|\/feed\b|\.xml/i.test(url.href) ? 'rss' : 'html',reliability:official ? 85 : 50,failureCount:0,isDemo:false,enabled:true,locationKey:location.key || location.name,discoveredAt:new Date().toISOString(),status:'idle',notes:result.snippet};
 }
 export function discoveryQueries(location:Location, query?:string):string[] {
-  const city = location.name.split(',').slice(0,2).map(part => part.trim()).join(' ');
+  const city = (location.discoveryName||location.name).split(',').slice(0,2).map(part => part.trim()).join(' ');
   if (!query?.trim()) return [city,`${city} library`,`${city} parks`,`${city} arena`,`${city} college`,`${city} transportation`,`${city} county government`,`${city} museum`,`${city} schools`,`${city} community calendar`,`${city} emergency management`,`${city} local news`];
   const topics = query.toLowerCase();
   const expanded = /music|concert|metal|jazz|rock|band/.test(topics) ? 'arena' : /furry|meetup|community|car meet/.test(topics) ? 'community center' : /food|restaurant|market|coffee/.test(topics) ? 'market' : /road|traffic|construction|transit/.test(topics) ? 'transportation' : /tech|cyber|software|student|workshop/.test(topics) ? 'college' : /art|museum|gallery/.test(topics) ? 'museum' : 'events';
