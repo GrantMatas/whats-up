@@ -99,10 +99,17 @@ async function installProtocol() {
     } catch { return new Response('Asset unavailable', { status: 404 }); }
   });
 }
+async function captureSmoke(browserWindow:BrowserWindow){
+  for(let attempt=0;attempt<3;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,500));
+    try{return await browserWindow.webContents.capturePage();}catch(error){if(attempt===2)throw error;}
+  }
+  throw Error('Smoke capture unavailable');
+}
 async function runSmoke(browserWindow:BrowserWindow,rendererErrors:string[]){
   const output=process.env.WHATSUP_SMOKE_DIR||join(dataDirectory,'smoke');mkdirSync(output,{recursive:true});
-  try{const state=database.getState();const renderer=await browserWindow.webContents.executeJavaScript(`(async()=>{const initial=await window.whatsup.getState();let rejectsDemo=false;try{await window.whatsup.saveSettings({...initial.settings,demoMode:true});}catch{rejectsDemo=true;}return {noNode:typeof window.require==='undefined',onboarding:!!document.querySelector('.onboarding'),noDemoCapability:!('setDemoMode' in window.whatsup),rejectsDemo};})()`);
-    writeFileSync(join(output,'desktop-onboarding.png'),(await browserWindow.webContents.capturePage()).toPNG());
+  try{browserWindow.webContents.setBackgroundThrottling(false);const state=database.getState();const renderer=await browserWindow.webContents.executeJavaScript(`(async()=>{const initial=await window.whatsup.getState();let rejectsDemo=false;try{await window.whatsup.saveSettings({...initial.settings,demoMode:true});}catch{rejectsDemo=true;}return {noNode:typeof window.require==='undefined',onboarding:!!document.querySelector('.onboarding'),noDemoCapability:!('setDemoMode' in window.whatsup),rejectsDemo};})()`);
+    writeFileSync(join(output,'desktop-onboarding.png'),(await captureSmoke(browserWindow)).toPNG());
     const cleanPreferences=state.settings.location.latitude===0&&state.settings.location.longitude===0&&!state.settings.interests.length;
     const report={...renderer,...preloadSecurity,cleanPreferences,initialEmpty:!state.happenings.length&&!state.sources.length&&!state.radars.length,rendererErrors,origin:browserWindow.webContents.getURL(),passed:cleanPreferences&&renderer.noNode&&renderer.onboarding&&renderer.noDemoCapability&&renderer.rejectsDemo&&preloadSecurity.sandbox&&preloadSecurity.contextIsolation&&!state.happenings.length&&rendererErrors.length===0};writeFileSync(join(output,'report.json'),JSON.stringify(report,null,2));app.exit(report.passed?0:1);
   }catch(error){writeFileSync(join(output,'report.json'),JSON.stringify({passed:false,error:String(error),rendererErrors},null,2));app.exit(1);}
@@ -112,7 +119,7 @@ async function runRealSmoke(browserWindow:BrowserWindow,rendererErrors:string[])
   browserWindow.webContents.setBackgroundThrottling(false);
   browserWindow.webContents.on('render-process-gone',(_event,details)=>rendererErrors.push('Renderer exited: '+details.reason));
   const evaluate=async(code:string)=>{let timer:ReturnType<typeof setTimeout>|undefined;try{return await Promise.race([browserWindow.webContents.executeJavaScript(code),new Promise<never>((_resolve,reject)=>{timer=setTimeout(()=>reject(Error('Smoke renderer response timed out')),30000);})]);}finally{if(timer)clearTimeout(timer);}};
-  const capture=async(name:string)=>{await new Promise(resolve=>setTimeout(resolve,650));writeFileSync(join(output,name+'.png'),(await browserWindow.webContents.capturePage()).toPNG());};
+  const capture=async(name:string)=>{await new Promise(resolve=>setTimeout(resolve,650));writeFileSync(join(output,name+'.png'),(await captureSmoke(browserWindow)).toPNG());};
   const ready=async(selector:string)=>evaluate(`new Promise((resolve,reject)=>{const start=Date.now();function check(){if(document.querySelector(${JSON.stringify(selector)}))requestAnimationFrame(()=>requestAnimationFrame(resolve));else if(Date.now()-start>15000)reject(Error('UI unavailable: '+${JSON.stringify(selector)}));else setTimeout(check,80);}check();})`);
   try{
     if(!process.env.WHATSUP_QA_REUSE){
