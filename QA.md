@@ -1,9 +1,11 @@
 # Release validation
 
-Version 0.4.0 is checked with TypeScript validation, parser/database/renderer regressions, production dependency auditing, Windows packaging, a packaged-content privacy audit, and native startup and real-ingestion smoke checks.
+Version 0.4.0 passed TypeScript validation and all 81 regression tests. The production dependency audit reported no known vulnerabilities. The packaged-content audit rejects private files, source maps, sample payloads, and workstation paths and creates SHA-256 checksums for both executables.
 
-Startup smoke uses a fresh temporary profile and verifies empty records/sources/Radars, onboarding, rejection of legacy demo mode, sandbox/context isolation, and no renderer errors. Real-ingestion smoke uses a separate temporary profile and public requests to check search/Radars, maps, published image loading/fallback, settings, tutorial, and resets. Temporary profiles, screenshots, and reports are ignored local artifacts, not release assets.
+Native startup smoke verified empty records/sources/Radars, unset location/interests, onboarding, rejection of legacy demo mode, sandbox/context isolation, and zero renderer errors.
 
-Test inputs are synthetic regression cases or attributed public parser samples; runtime code never loads them. Package auditing rejects private files, source maps, sample payloads, and personal build paths and creates SHA-256 checksums for both executables.
+An isolated real-source scan collected 13 actual records from 176 discovered sources, with 10 mapped records and 12 records containing publisher image URLs. Native UI validation used a copy of that same freshly collected profile and passed search/Radar, maps, published image loading/fallback, settings, tutorial, feedback, saved watch areas, and both reset controls with zero renderer errors. Test-only background throttling is disabled to keep UI validation responsive when the test window is obscured. These counts describe this run, not total local coverage.
 
-Coverage changes between runs as publishers and services change. HTTP failures are recorded without fabricated replacements. Bluesky returned HTTP 403 during prior real validation. Packages remain unsigned; code signing is outstanding.
+Temporary profiles, screenshots, and reports are ignored local artifacts and are not release assets. Unit inputs are synthetic regression cases or attributed public parser samples; runtime code never loads them. Windows CI runs fresh dependency installation, tests, audit, packaging, content auditing, and empty-startup smoke without release-publishing permissions.
+
+Coverage varies as publishers and services change. HTTP failures are recorded without fabricated replacements. Bluesky returned HTTP 403 during prior validation. Packages remain unsigned; code signing is outstanding.

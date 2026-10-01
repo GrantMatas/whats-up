@@ -13,7 +13,7 @@
     "start": "electron .",
     "test": "vitest run --configLoader runner",
     "typecheck": "tsc --noEmit",
-    "package": "npm run build && electron-builder --win nsis portable",
+    "package": "npm run build && electron-builder --win nsis portable --publish never",
     "smoke": "node scripts/smoke.mjs",
     "audit:release": "node scripts/audit-release.mjs"
   },

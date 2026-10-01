@@ -109,7 +109,9 @@ async function runSmoke(browserWindow:BrowserWindow,rendererErrors:string[]){
 }
 async function runRealSmoke(browserWindow:BrowserWindow,rendererErrors:string[]){
   const output=process.env.WHATSUP_SMOKE_DIR||join(dataDirectory,'real-smoke');mkdirSync(output,{recursive:true});
-  const evaluate=(code:string)=>browserWindow.webContents.executeJavaScript(code);
+  browserWindow.webContents.setBackgroundThrottling(false);
+  browserWindow.webContents.on('render-process-gone',(_event,details)=>rendererErrors.push('Renderer exited: '+details.reason));
+  const evaluate=async(code:string)=>{let timer:ReturnType<typeof setTimeout>|undefined;try{return await Promise.race([browserWindow.webContents.executeJavaScript(code),new Promise<never>((_resolve,reject)=>{timer=setTimeout(()=>reject(Error('Smoke renderer response timed out')),30000);})]);}finally{if(timer)clearTimeout(timer);}};
   const capture=async(name:string)=>{await new Promise(resolve=>setTimeout(resolve,650));writeFileSync(join(output,name+'.png'),(await browserWindow.webContents.capturePage()).toPNG());};
   const ready=async(selector:string)=>evaluate(`new Promise((resolve,reject)=>{const start=Date.now();function check(){if(document.querySelector(${JSON.stringify(selector)}))requestAnimationFrame(()=>requestAnimationFrame(resolve));else if(Date.now()-start>15000)reject(Error('UI unavailable: '+${JSON.stringify(selector)}));else setTimeout(check,80);}check();})`);
   try{
@@ -122,6 +124,7 @@ async function runRealSmoke(browserWindow:BrowserWindow,rendererErrors:string[])
     const started=Date.now();let began=false;
     while(Date.now()-started<240000){const state=database.getState();began ||= !!state.engine?.scanning;if(began&&!state.engine?.scanning)break;await new Promise(resolve=>setTimeout(resolve,500));}
     }else await ready('.app-shell');
+    console.log('Real smoke: collection complete');
     const state=database.getState();if(!state.happenings.length||state.happenings.some(h=>h.isDemo))throw Error('Real feed is empty or contains fixtures');
     if(!state.happenings.some(h=>h.latitude!==null&&h.longitude!==null))throw Error('No real coordinates collected');
     await ready('[data-map-ready="true"]');

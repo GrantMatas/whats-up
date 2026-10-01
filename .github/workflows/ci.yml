@@ -26,7 +26,7 @@ jobs:
         with:
           name: windows-distribution
           path: |
-            release/What's Up*.exe
+            release/Whats-Up*.exe
             release/SHA256SUMS.txt
             release/PRIVACY-AUDIT.json
           if-no-files-found: error

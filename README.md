@@ -6,14 +6,14 @@ A local-first Windows app for discovering public events, news, alerts, and commu
 
 Download the Windows x64 build from [GitHub Releases](https://github.com/GrantMatas/whats-up/releases/latest):
 
-- **What's Up Setup 0.4.0.exe** installs the app and creates shortcuts.
-- **What's Up 0.4.0.exe** runs without installation. Settings and collected information still live in your Windows user profile.
+- **Whats-Up-Setup-0.4.0.exe** installs the app and creates shortcuts.
+- **Whats-Up-0.4.0.exe** runs without installation. Settings and collected information still live in your Windows user profile.
 - **SHA256SUMS.txt** contains checksums for both downloads.
 
 Use Windows 11 x64. No Node.js installation, account, database server, or API key is required. These builds are unsigned; Windows may show an unknown-publisher warning. Verify the release origin and checksum before deciding whether to run it. Code signing remains outstanding.
 
 ```powershell
-Get-FileHash -Algorithm SHA256 -LiteralPath ".\What's Up Setup 0.4.0.exe"
+Get-FileHash -Algorithm SHA256 -LiteralPath ".\Whats-Up-Setup-0.4.0.exe"
 ```
 
 On first launch, enter a city with its state or country, choose a radius and interests, and open your brief. New installations contain **no events, sources, saved searches, or demo data**. Public discovery fills the workspace; Sources shows progress and failures. Internet access is needed for discovery, updates, geocoding, maps, and images. Previously collected text remains available locally.

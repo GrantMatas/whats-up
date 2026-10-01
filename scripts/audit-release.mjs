@@ -1,5 +1,5 @@
 import { listPackage, extractFile } from '@electron/asar';
-import { readFileSync, writeFileSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, statSync, copyFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, sep } from 'node:path';
 
@@ -28,7 +28,9 @@ if (process.env.USERPROFILE) {
 if (failures.length) throw new Error(failures.join('\n'));
 const assets = [`What's Up Setup ${pkg.version}.exe`, `What's Up ${pkg.version}.exe`].map(name => {
   const path = join('release', name);
-  return { name, bytes: statSync(path).size, sha256: createHash('sha256').update(readFileSync(path)).digest('hex') };
+  const downloadName = name.replace("What's Up", 'Whats-Up').replaceAll(' ', '-');
+  copyFileSync(path, join('release', downloadName));
+  return { name: downloadName, bytes: statSync(path).size, sha256: createHash('sha256').update(readFileSync(path)).digest('hex') };
 });
 writeFileSync('release/SHA256SUMS.txt', assets.map(asset => `${asset.sha256}  ${asset.name}`).join('\n') + '\n');
 const report = { version: pkg.version, passed: true, applicationArchiveEntries: entries.length, checks: ['No databases, logs, profiles, test fixtures, or source maps', 'No private workstation paths, credential patterns, or legacy sample payloads in application files', 'Application and dependency licenses included'], assets };
