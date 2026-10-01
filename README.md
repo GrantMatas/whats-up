@@ -18,6 +18,12 @@ Get-FileHash -Algorithm SHA256 -LiteralPath ".\Whats-Up-Setup-0.4.1.exe"
 
 On first launch, the place field is blank. Enter and resolve your own city with its state or country, choose a radius and interests, and open your brief. Interest categories are general, with nothing preselected; you can add your own topics. New installations contain **no events, sources, saved searches, or demo data**. Public discovery fills the workspace; Sources shows progress and failures. Internet access is needed for discovery, updates, geocoding, maps, and images. Previously collected text remains available locally.
 
+## Uninstall
+
+Open **Start → What's Up → Uninstall What's Up**, or use **Windows Settings → Apps → Installed apps → What's Up → Uninstall**. The installed folder also contains **Uninstall What's Up.exe**.
+
+Uninstall removes the application and shortcuts while keeping your local workspace for a later reinstall. To delete saved records and preferences as well, use **Settings → Reset workspace** inside the app before uninstalling. A portable download can be removed by deleting its executable; its local workspace uses the same reset control.
+
 ## Features
 
 - Feed, timeline, calendar, map, heatmap, changes, topics, collections, relationship graph, and reports.

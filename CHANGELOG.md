@@ -4,6 +4,7 @@
 
 - General interest categories and neutral search examples replace niche suggestions. No interests are preselected.
 - Setup starts with a blank location field, without preset city suggestions, and requires a resolved place before opening the workspace. Users choose their own radius and interests.
+- The installer creates a clearly named Start-menu uninstaller shortcut. Uninstall removes the application and shortcuts while retaining saved workspace data; Reset workspace explicitly clears that data.
 
 ## 0.4.0
 
